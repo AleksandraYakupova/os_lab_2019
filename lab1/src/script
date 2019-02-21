@@ -1,0 +1,5 @@
+#!/bin/bash
+dat=$(date '+%d/%m/%Y %H:%M:%S')
+echo "$dat"
+echo $PATH
+pwd

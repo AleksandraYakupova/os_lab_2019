@@ -40,16 +40,22 @@ int main(int argc, char **argv) {
         switch (option_index) {
           case 0:
             seed = atoi(optarg);
+            if (seed <= 0) printf("seed must be a positive number");
+            return -1;
             // your code here
             // error handling
             break;
           case 1:
             array_size = atoi(optarg);
+            if (array_size <= 0 ) printf("array_size must be a positive number");
+            return -1;
             // your code here
             // error handling
             break;
           case 2:
             pnum = atoi(optarg);
+            if (pnum <= 0 ) printf("pnum must be a positive number");
+            return -1;
             // your code here
             // error handling
             break;
@@ -91,20 +97,34 @@ int main(int argc, char **argv) {
   struct timeval start_time;
   gettimeofday(&start_time, NULL);
 
+  int file_pipes[2];
+  pipe(file_pipes);
+  
+  int step = array_size/pnum;
+  
   for (int i = 0; i < pnum; i++) {
     pid_t child_pid = fork();
     if (child_pid >= 0) {
       // successful fork
+      
       active_child_processes += 1;
       if (child_pid == 0) {
         // child process
-
-        // parallel somehow
+        //int max = INT_MIN;
+        //int min = INT_MAX;
+        struct MinMax min_max = GetMinMax(array, i*step, i*step + step - 1);
 
         if (with_files) {
           // use files here
+          FILE *pFile;
+          pFile = fopen("min_max_numbers.txt", "a");
+          fprintf(pFile, "%d;%d\n", min_max.max, min_max.min);//записываем в файл
+          fclose(pFile);
         } else {
           // use pipe here
+          char str[10];
+          sprintf(str, "%d%d", min_max.max, min_max.min);//записываем макс и мин
+          write(file_pipes[1], str, strlen(str));
         }
         return 0;
       }
@@ -117,7 +137,8 @@ int main(int argc, char **argv) {
 
   while (active_child_processes > 0) {
     // your code here
-
+    close(file_pipes[1]);
+    wait(NULL);//ждем, пока дочерний процесс завершится, не записываем инфу о статусе завершения
     active_child_processes -= 1;
   }
 
@@ -125,14 +146,24 @@ int main(int argc, char **argv) {
   min_max.min = INT_MAX;
   min_max.max = INT_MIN;
 
+  FILE *pFile;
+  pFile = fopen("min_max_numbers.txt", "r");
   for (int i = 0; i < pnum; i++) {
     int min = INT_MAX;
     int max = INT_MIN;
 
     if (with_files) {
       // read from files
+      fscanf(pFile, "%d", &max);
+      fseek(pFile, 1, SEEK_CUR); //пропускаем ";"
+      fscanf(pFile, "%d", &min);
+      fseek(pFile, 1, SEEK_CUR); //пропускаем "\n"
     } else {
       // read from pipes
+      //читаем макс
+      read(file_pipes[0], &max, sizeof(int));
+      read(file_pipes[0], &min, sizeof(int));
+      
     }
 
     if (min < min_max.min) min_max.min = min;
